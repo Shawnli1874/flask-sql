@@ -6,21 +6,22 @@ import logging
 from functools import wraps
 from dotenv import load_dotenv
 
-# 配置日志
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    force=True
 )
 logger = logging.getLogger(__name__)
 
-# 加载环境变量
+# Load environment variables
 load_dotenv()
-logger.info('环境变量加载完成')
+logger.info('Environment variables loaded successfully')
 
 app = Flask(__name__)
 
-# 数据库配置
+# Database configuration
 DB_CONFIG = {
     'host': os.getenv('MYSQL_HOST', 'localhost'),
     'port': int(os.getenv('MYSQL_PORT', '3306')),
@@ -28,7 +29,7 @@ DB_CONFIG = {
     'password': os.getenv('MYSQL_PASSWORD', ''),
     'database': os.getenv('MYSQL_DATABASE', 'test')
 }
-logger.info(f'数据库配置完成: host={DB_CONFIG["host"]}, port={DB_CONFIG["port"]}, database={DB_CONFIG["database"]}')
+logger.info(f'Database configuration completed: host={DB_CONFIG["host"]}, port={DB_CONFIG["port"]}, database={DB_CONFIG["database"]}')
 
 # API密钥
 API_KEY = os.getenv('API_KEY', 'your-secret-key')
@@ -38,80 +39,80 @@ def require_api_key(f):
     def decorated(*args, **kwargs):
         api_key = request.headers.get('X-API-Key')
         if api_key and api_key == API_KEY:
-            logger.info(f'API认证成功: {request.path}')
+            logger.info(f'API authentication successful: {request.path}')
             return f(*args, **kwargs)
-        logger.warning(f'API认证失败: {request.path}')
+        logger.warning(f'API authentication failed: {request.path}')
         return jsonify({'status': 'error', 'message': 'Invalid API key'}), 401
     return decorated
 
 def is_safe_sql(sql):
     # 检查SQL语句长度
     if len(sql) > 1000:
-        logger.warning(f'SQL语句长度超过限制: {len(sql)}')
+        logger.warning(f'SQL query length exceeds limit: {len(sql)}')
         return False
 
-    # 检查是否只包含SELECT语句
+    # Check if query is SELECT or WITH
     sql = sql.strip().upper()
-    if not sql.startswith('SELECT'):
-        logger.warning('SQL语句不是SELECT语句')
+    if not (sql.startswith('SELECT') or sql.startswith('WITH')):
+        logger.warning('SQL query is not a SELECT or WITH statement')
         return False
     
-    # 检查是否包含危险关键字
+    # Check for dangerous keywords
     dangerous_keywords = ['DELETE', 'DROP', 'INSERT', 'UPDATE', 'CREATE', 'ALTER', 'TRUNCATE', 
                          'EXEC', 'EXECUTE', 'UNION', 'INTO OUTFILE', 'LOAD_FILE']
     if any(keyword in sql for keyword in dangerous_keywords):
-        logger.warning(f'SQL语句包含危险关键字: {sql}')
+        logger.warning(f'SQL query contains dangerous keywords: {sql}')
         return False
 
-    # 检查是否包含注释
+    # Check for comments
     if '--' in sql or '/*' in sql or '*/' in sql:
-        logger.warning('SQL语句包含注释')
+        logger.warning('SQL query contains comments')
         return False
 
-    # 检查是否包含多个语句
-    if ';' in sql:
-        logger.warning('SQL语句包含多个语句')
+    # Check for multiple statements
+    if not sql.startswith('WITH') and ';' in sql:
+        logger.warning('SQL query contains multiple statements')
         return False
 
-    logger.info('SQL语句安全检查通过')
+    logger.info('SQL query security check passed')
     return True
 
 @app.route('/health')
 def health_check():
-    logger.info('健康检查请求')
+    logger.info('Health check request received')
     return jsonify({'status': 'ok'})
 
 @app.route('/query')
 @require_api_key
 def query():
-    logger.info(f'收到查询请求: {request.remote_addr}')
+    logger.info(f'Query request received from: {request.remote_addr}')
     sql = request.args.get('sql')
     if not sql:
-        logger.warning('未提供SQL查询语句')
+        logger.warning('No SQL query provided')
         return jsonify({'status': 'error', 'message': 'SQL query is required'}), 400
     
     if not is_safe_sql(sql):
-        logger.warning('SQL语句未通过安全检查')
+        logger.warning('SQL query failed security check')
         return jsonify({'status': 'error', 'message': 'Invalid SQL query'}), 400
     
     try:
         with connect(**DB_CONFIG) as conn:
             with conn.cursor(dictionary=True) as cursor:
-                logger.info(f'执行SQL查询: {sql}')
+                logger.info(f'Executing SQL query: {sql}')
                 cursor.execute(sql)
                 results = cursor.fetchall()
-                logger.info(f'查询成功，返回{len(results)}条记录')
+                logger.info(f'Query successful, returned {len(results)} records')
                 return jsonify({
                     'status': 'success',
                     'data': results
                 })
     except Error as e:
-        logger.error(f'数据库错误: {str(e)}')
+        logger.error(f'Database error: {str(e)}')
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
 if __name__ == '__main__':
-    logger.info('启动Flask应用服务器')
+    logger.info('Starting Flask application server')
     app.run(host='0.0.0.0', port=8888)
