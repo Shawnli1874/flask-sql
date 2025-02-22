@@ -110,6 +110,23 @@ export MYSQL_DATABASE=test
 export API_KEY=your-secret-key
 ```
 
+### 3.3 Security Recommendations
+
+1. Database Account Permissions
+   - Strongly recommend using a read-only database account
+   - Since this service only provides query functionality, using a read-only account can effectively prevent accidental data modifications
+   - Example of creating a read-only user:
+   ```sql
+   CREATE USER 'readonly_user'@'%' IDENTIFIED BY 'password';
+   GRANT SELECT ON database_name.* TO 'readonly_user'@'%';
+   FLUSH PRIVILEGES;
+   ```
+
+2. API Key
+   - Use sufficiently complex API keys
+   - Regularly rotate API keys
+   - Avoid hardcoding API keys in the code
+
 ## 4. Deployment
 
 ### 4.1 Docker Deployment
@@ -152,23 +169,6 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
-
-### 3.3 Security Recommendations
-
-1. Database Account Permissions
-   - Strongly recommend using a read-only database account
-   - Since this service only provides query functionality, using a read-only account can effectively prevent accidental data modifications
-   - Example of creating a read-only user:
-   ```sql
-   CREATE USER 'readonly_user'@'%' IDENTIFIED BY 'password';
-   GRANT SELECT ON database_name.* TO 'readonly_user'@'%';
-   FLUSH PRIVILEGES;
-   ```
-
-2. API Key
-   - Use sufficiently complex API keys
-   - Regularly rotate API keys
-   - Avoid hardcoding API keys in the code
 
 ## 5. License
 

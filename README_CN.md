@@ -110,6 +110,23 @@ export MYSQL_DATABASE=test
 export API_KEY=your-secret-key
 ```
 
+### 3.3 安全建议
+
+1. 数据库账号权限
+   - 强烈建议使用只读数据库账号
+   - 由于本服务仅提供查询功能，使用只读账号可以有效防止意外的数据修改
+   - 创建只读用户示例：
+   ```sql
+   CREATE USER 'readonly_user'@'%' IDENTIFIED BY 'password';
+   GRANT SELECT ON database_name.* TO 'readonly_user'@'%';
+   FLUSH PRIVILEGES;
+   ```
+
+2. API密钥
+   - 使用足够复杂的API密钥
+   - 定期更换API密钥
+   - 避免在代码中硬编码API密钥
+
 ## 4. 部署说明
 
 ### 4.1 Docker 部署
@@ -156,19 +173,3 @@ python app.py
 ## 5. 许可证
 
 本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
-### 3.3 安全建议
-
-1. 数据库账号权限
-   - 强烈建议使用只读数据库账号
-   - 由于本服务仅提供查询功能，使用只读账号可以有效防止意外的数据修改
-   - 创建只读用户示例：
-   ```sql
-   CREATE USER 'readonly_user'@'%' IDENTIFIED BY 'password';
-   GRANT SELECT ON database_name.* TO 'readonly_user'@'%';
-   FLUSH PRIVILEGES;
-   ```
-
-2. API密钥
-   - 使用足够复杂的API密钥
-   - 定期更换API密钥
-   - 避免在代码中硬编码API密钥
