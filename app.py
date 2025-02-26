@@ -47,7 +47,7 @@ def require_api_key(f):
 
 def is_safe_sql(sql):
     # 检查SQL语句长度
-    if len(sql) > 1000:
+    if len(sql) > 2000:
         logger.warning(f'SQL query length exceeds limit: {len(sql)}')
         return False
 
@@ -59,19 +59,9 @@ def is_safe_sql(sql):
     
     # Check for dangerous keywords
     dangerous_keywords = ['DELETE', 'DROP', 'INSERT', 'UPDATE', 'CREATE', 'ALTER', 'TRUNCATE', 
-                         'EXEC', 'EXECUTE', 'UNION', 'INTO OUTFILE', 'LOAD_FILE']
+                         'EXEC', 'EXECUTE', 'INTO OUTFILE', 'LOAD_FILE']
     if any(keyword in sql for keyword in dangerous_keywords):
         logger.warning(f'SQL query contains dangerous keywords: {sql}')
-        return False
-
-    # Check for comments
-    if '--' in sql or '/*' in sql or '*/' in sql:
-        logger.warning('SQL query contains comments')
-        return False
-
-    # Check for multiple statements
-    if not sql.startswith('WITH') and ';' in sql:
-        logger.warning('SQL query contains multiple statements')
         return False
 
     logger.info('SQL query security check passed')

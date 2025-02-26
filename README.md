@@ -4,7 +4,21 @@
 
 A Flask-based MySQL query API service that provides a secure, read-only SQL query interface.
 
-## 1. Features
+## 1. Use Cases
+
+This service is particularly well-suited for integration with LLM (Large Language Model) workflow platforms such as:
+
+- **Dify.ai**: Easily connect to your MySQL database through API calls in your Dify applications
+- **FastGPT**: Integrate real-time database queries into your FastGPT workflows
+- **Coze**: Enable database access capabilities in your Coze applications
+
+Key advantages for LLM workflow integration:
+- Simple REST API interface requiring minimal configuration
+- Secure read-only access preventing accidental data modifications
+- Built-in SQL injection protection
+- Easy to deploy and maintain
+
+## 2. Features
 
 - RESTful API interface
 - Secure read-only SQL queries
