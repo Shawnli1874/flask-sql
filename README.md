@@ -20,11 +20,17 @@ Key advantages for LLM workflow integration:
 
 ## 2. Features
 
-- RESTful API interface
+- RESTful API interface (supports both GET and POST methods)
 - Secure read-only SQL queries
 - API key authentication
 - Docker containerized deployment
 - Health check endpoint
+- Detailed error messages for troubleshooting
+- Request ID tracking for easier debugging
+- Query timeout control to prevent long-running queries
+- Result size limitation to prevent memory issues
+- Automatic LIMIT clause addition for queries without one
+- Enhanced error handling with detailed diagnostics
 
 ## 2. API Documentation
 
@@ -32,7 +38,7 @@ Key advantages for LLM workflow integration:
 
 | Endpoint | Method | Path | Description |
 |----------|--------|------|-------------|
-| Query | GET | /query | Execute SQL queries and return results |
+| Query | GET/POST | /query | Execute SQL queries and return results |
 | Health Check | GET | /health | Check service status |
 
 ### 2.2 Query Endpoint
@@ -42,15 +48,27 @@ Key advantages for LLM workflow integration:
 | Parameter | Location | Type | Required | Description |
 |-----------|----------|------|----------|-------------|
 | X-API-Key | Header | string | Yes | API key |
-| sql | Query | string | Yes | SQL query statement |
+| sql | Query/Body | string | Yes | SQL query statement |
+
+#### Request Methods
+
+**GET Method**:
+- SQL query is passed as a URL parameter
+- Example: `/query?sql=SELECT * FROM users LIMIT 5`
+
+**POST Method (Recommended)**:
+- Supports both JSON and form data formats
+- JSON format: `{"sql": "SELECT * FROM users LIMIT 5"}`
+- Form data: `sql=SELECT * FROM users LIMIT 5`
+- POST method is recommended for complex or longer queries that might cause issues with URL length limitations
 
 #### Security Restrictions
 
-- Only SELECT statements are supported
-- Query length must not exceed 1000 characters
+- Only SELECT and WITH statements are supported
+- Query length must not exceed 3000 characters
 - Multiple statements are not allowed (no semicolons)
-- Comments are not allowed
 - Dangerous keywords are forbidden (DELETE, DROP, INSERT, etc.)
+- Queries without a LIMIT clause will automatically have one added
 
 #### Response Format
 
@@ -58,7 +76,12 @@ Success response:
 ```json
 {
     "status": "success",
-    "data": []
+    "data": [],
+    "metadata": {
+        "row_count": 10,
+        "execution_time": "0.25s",
+        "truncated": false
+    }
 }
 ```
 
@@ -66,16 +89,37 @@ Error response:
 ```json
 {
     "status": "error",
-    "message": "Error message"
+    "code": 1064,  // MySQL error code (if applicable)
+    "message": "Detailed error message",
+    "details": "Original database error message",
+    "metadata": {
+        "execution_time": "0.15s"
+    },
+    "request_id": "a1b2c3d4"  // For error reporting
 }
 ```
 
 #### Example
 
-Request:
+GET Request:
 ```bash
 curl -X GET "http://localhost:8888/query?sql=SELECT%20*%20FROM%20users%20LIMIT%205" \
      -H "X-API-Key: your-secret-key"
+```
+
+POST Request (JSON):
+```bash
+curl -X POST "http://localhost:8888/query" \
+     -H "X-API-Key: your-secret-key" \
+     -H "Content-Type: application/json" \
+     -d '{"sql": "SELECT * FROM users LIMIT 5"}'
+```
+
+POST Request (Form):
+```bash
+curl -X POST "http://localhost:8888/query" \
+     -H "X-API-Key: your-secret-key" \
+     -d "sql=SELECT * FROM users LIMIT 5"
 ```
 
 ### 2.3 Health Check Endpoint
@@ -84,7 +128,8 @@ curl -X GET "http://localhost:8888/query?sql=SELECT%20*%20FROM%20users%20LIMIT%2
 
 ```json
 {
-    "status": "ok"
+    "status": "ok",
+    "database": "connected"
 }
 ```
 
@@ -109,9 +154,14 @@ MYSQL_PORT=3306      # MySQL server port
 MYSQL_USER=root      # MySQL username
 MYSQL_PASSWORD=your_password   # MySQL password
 MYSQL_DATABASE=test   # MySQL database name
+MYSQL_TIMEOUT=10     # Connection timeout in seconds
 
 # API Key
 API_KEY=your-secret-key   # API access key
+
+# Performance Settings
+MAX_RESULT_ROWS=10000    # Maximum number of rows to return
+QUERY_TIMEOUT=30         # Query execution timeout in seconds
 ```
 
 2. Or set environment variables directly
@@ -122,6 +172,8 @@ export MYSQL_USER=root
 export MYSQL_PASSWORD=your_password
 export MYSQL_DATABASE=test
 export API_KEY=your-secret-key
+export MAX_RESULT_ROWS=10000
+export QUERY_TIMEOUT=30
 ```
 
 ### 3.3 Security Recommendations
@@ -140,6 +192,10 @@ export API_KEY=your-secret-key
    - Use sufficiently complex API keys
    - Regularly rotate API keys
    - Avoid hardcoding API keys in the code
+
+3. Query Limits
+   - Set appropriate values for `MAX_RESULT_ROWS` and `QUERY_TIMEOUT` based on your database size and performance
+   - For large databases, consider lower values to prevent resource exhaustion
 
 ## 4. Deployment
 
@@ -184,6 +240,30 @@ pip install -r requirements.txt
 python app.py
 ```
 
-## 5. License
+## 5. Troubleshooting
+
+### 5.1 Using Request IDs
+
+Each request is assigned a unique request ID that is included in:
+- Log entries related to the request
+- Error responses
+
+When reporting issues, always include the request ID to help with debugging.
+
+### 5.2 Common Issues
+
+1. **Query Timeout**
+   - Error: "Query execution timed out after X seconds"
+   - Solution: Optimize your query or increase the `QUERY_TIMEOUT` value
+
+2. **Result Truncation**
+   - Symptom: Response includes `"truncated": true` in metadata
+   - Solution: Add a more restrictive LIMIT clause to your query or increase `MAX_RESULT_ROWS`
+
+3. **Permission Errors**
+   - Error: "Database permission denied"
+   - Solution: Ensure the database user has appropriate SELECT permissions
+
+## 6. License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
